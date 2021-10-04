@@ -10,15 +10,13 @@ class Cluster:
         self.centroids_x = centroids_x
         self.centroids_y = centroids_y
 
-    def __init__(self, centroids_x, centroids_y, points_x, points_y):
-        self.points_x = points_x
-        self.points_y = points_y
-        self.centroids_x = centroids_x
-        self.centroids_y = centroids_y
-
     def add_point(self, x, y):
         self.points_x.append(x)
         self.points_y.append(y)
+
+    def add_points(self, x, y):
+        self.points_x.extend(x)
+        self.points_y.extend(y)
 
     def mean(self):
         self.centroids_x = sum(self.points_x) / len(self.points_x)
@@ -30,16 +28,13 @@ class Cluster:
 
 
 def show_picture(clusters):
-    color = ['r', 'b', 'g', 'c', 'm']
+    color = ['r', 'b', 'g', 'c', 'm', 'k', 'y', 'stategray', 'sienna']
     i = 0
     for cl in clusters:
         plt.scatter(cl.centroids_x, cl.centroids_y, color=color[i], marker='x')
         plt.scatter(cl.points_x, cl.points_y, color=color[i])
-        for x in cl.points_x:
-            print(x)
         i += 1
     plt.show()
-    print("_")
 
 
 def map_to_array(clusters):
@@ -88,7 +83,7 @@ def centroids(points, k):
 
 
 def nearest_centroid(points, centroids):
-    clusters = [Cluster(x_c, y_c, [], []) for x_c, y_c in zip(centroids[0], centroids[1])]
+    clusters = [Cluster(x_c, y_c) for x_c, y_c in zip(centroids[0], centroids[1])]
     indx = -1
     for x, y in zip(points['x'], points['y']):
         r = float('inf')
@@ -96,7 +91,7 @@ def nearest_centroid(points, centroids):
             if r > dist(x, y, cl.centroids_x, cl.centroids_y):
                 r = dist(x, y, cl.centroids_x, cl.centroids_y)
                 indx = i
-        if indx > 0:
+        if indx >= 0:
             clusters[indx].add_point(x, y)
     return clusters
 
@@ -104,7 +99,9 @@ def nearest_centroid(points, centroids):
 def recalculate_centroid(clusters):
     new_clusters = []
     for cl in clusters:
-        new_clusters.append(Cluster(cl.centroids_x, cl.centroids_y, cl.points_x, cl.points_y))
+        new_cl = Cluster(cl.centroids_x, cl.centroids_y)
+        new_cl.add_points(cl.points_x, cl.points_y)
+        new_clusters.append(new_cl)
     for cl in new_clusters:
         if len(cl.points_x) != 0:
             cl.mean()
@@ -119,48 +116,57 @@ def centroid_not_equals(old_cluster, new_cluster):
                 and old_cluster[i].centroids_y != new_cluster[i].centroids_y:
             return True
     return False
-    # print("tyt")
-    # for old_cl, new_cl in zip(old_cluster, new_cluster):
-    #     print("ty2")
-    #     for o_x, o_y in zip(old_cl.points_x, old_cl.points_y):
-    #         print("ty3")
-    #         isNotExist = True
-    #         for n_x, n_y in zip(new_cl.points_x, new_cl.points_y):
-    #             if o_x == n_x and o_y == n_y:
-    #                 isNotExist = False
-    #                 break
-    #         if (isNotExist):
-    #             return True
-    #
-    # print("F")
-    # return False
+
 
 def c_l(clusters):
     r = []
     for cl in clusters:
         for x, y in zip(cl.points_x, cl.points_y):
             r.append(dist(cl.centroids_x, cl.centroids_y, x, y))
-    return r.sum()
+    return sum(r)
 
 
+def d_l(s0, s1, s2):
+    if abs(s0 - s1) != 0:
+        return abs(s1 - s2) / abs(s0 - s1)
+    else:
+        return float('inf')
 
-if __name__ == "__main__":
-    n = 10  # кол-во тчк
-    k = 3  # кол-во кластеров
-    filename = 'dataset.csv'
-    generate_points_file(n, filename)
-    points = read_csv(filename)
-    centroids = centroids(points, k)
-    # centroids = [x_c, y_c]
-    clusters = nearest_centroid(points, centroids)
-    show_picture(clusters)
+
+def k_means(points, k, is_show):
+    cntds = centroids(points, k)
+    clusters = nearest_centroid(points, cntds)
+    if (is_show):
+        show_picture(clusters)
     new_clusters = []
     old_clusters = []
     while centroid_not_equals(old_clusters, new_clusters):
-        old_clusters = nearest_centroid(points, centroids)
+        old_clusters = nearest_centroid(points, cntds)
         new_clusters = recalculate_centroid(old_clusters)
-        centroids = map_to_array(new_clusters)
-        show_picture(new_clusters)
-        for cl in new_clusters:
-            cl.clear_points()
+        cntds = map_to_array(new_clusters)
+        if (is_show):
+            show_picture(new_clusters)
+    return new_clusters
 
+
+if __name__ == "__main__":
+    n = 100  # кол-во тчк
+    k_max = 15  # максимальное кол-во кластеров
+    k = 3  # кол-во кластеров
+    c_ls = []
+    d_ls = []
+    filename = 'dataset.csv'
+    # generate_points_file(n, filename)
+    points = read_csv(filename)
+    for i in range(k, k_max):
+        clusters = k_means(points, i, False)
+        c_ls.append(c_l(clusters))
+
+    dl = float('inf')
+    k = 0
+    for i in range(0, len(c_ls) - 2):
+        d_ls.append(d_l(c_ls[i], c_ls[i+1], c_ls[i+2]))
+        if dl > d_l(c_ls[i], c_ls[i+1], c_ls[i+2]):
+            dl = d_l(c_ls[i], c_ls[i+1], c_ls[i+2])
+            k = i + 1
+    k_means(points, k, True)
