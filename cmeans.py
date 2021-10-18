@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 M = 1.5
-E = 0.01
+E = 0.001
 
 class Cluster:
     def __init__(self, centroids_x, centroids_y):
@@ -50,11 +50,6 @@ def show_picture(clusters, matrix, points):
         plt.scatter(cl.centroids_x, cl.centroids_y, color=color[i], marker='x')
         plt.scatter(cl.points_x, cl.points_y, color=color[i])
         i += 1
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            print("x = ", points['x'][j], "y = ", points['y'][j], "p = ", matrix[i][j])
-            # plt.text(points['x'][j], points['y'][j], round(matrix[i][j], 2), fontsize=12)
-    print("------------------------------------")
     plt.show()
 
 
@@ -131,7 +126,12 @@ def recalculate_centroid(clusters):
 
 def calculate_centr_cluster(clusters, u_new):
     j = 0
+    new_clusters = []
     for cl in clusters:
+        new_cl = Cluster(cl.centroids_x, cl.centroids_y)
+        new_cl.add_points(cl.points_x, cl.points_y)
+        new_clusters.append(new_cl)
+    for cl in new_clusters:
         i = 0
         s = 0
         for l in range(len(cl.points_x)):
@@ -143,7 +143,8 @@ def calculate_centr_cluster(clusters, u_new):
             s_cl_y += ((u_new[j][i]) ** M) * y
             i += 1
         cl.set_centr(s_cl_x/s, s_cl_y/s)
-        j+=1
+        j += 1
+    return new_clusters
 
 
 def is_not_finished(u_new, u_pre):
@@ -159,12 +160,14 @@ def cal_membership_coef(centroids, points):
     for i in range(len(centroids[0])):
         matrix.append([])
     for i in range(len(points['x'])):
-        dist_sum = 0
+        dist_sum = 0.0
+        dist_sum = np.float_(dist_sum)
+        m = np.float_(M)
         for j in range(len(centroids[0])):
-            dist_sum += dist(points['x'][i], points['y'][i], centroids[0][j], centroids[1][j]) ** (2/(1-M))
+            dist_sum += dist(points['x'][i], points['y'][i], centroids[0][j], centroids[1][j]) ** 2 / (1-m)
         for j in range(len(centroids[0])):
-            prob = dist(points['x'][i], points['y'][i], centroids[0][j], centroids[1][j]) ** (2/(1-M)) / dist_sum
-            matrix[j].append(prob)
+            prob = (dist(points['x'][i], points['y'][i], centroids[0][j], centroids[1][j]) ** 2 / (1-m))
+            matrix[j].append(prob/dist_sum)
     return matrix
 
 
@@ -195,7 +198,8 @@ def c_means(points, k, is_show, u):
         cntds = map_to_array(new_clusters)
         u[1] = u[0]
         u[0] = cal_membership_coef(cntds, points)
-        calculate_centr_cluster(new_clusters, u[0])
+        new_clusters = calculate_centr_cluster(new_clusters, u[0])
+        cntds = map_to_array(new_clusters)
         if (is_show):
             show_picture(new_clusters, u[0], points)
     return new_clusters
@@ -223,4 +227,5 @@ if __name__ == "__main__":
             k = i + 1
 
     u = fill_zero(k, len(points))
+    print(k)
     c_means(points, k, True, u)
